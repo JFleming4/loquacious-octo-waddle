@@ -1,4 +1,4 @@
-CC=gcc
+all: consumer producer main
 
-all: consumer producer
-
+clean:
+	rm consumer producer main other.txt

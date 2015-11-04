@@ -8,12 +8,6 @@
 #include "shared_mem.h"
 #include "semun.h"
 
-void cleanup(int sig) {
-//     fclose(fp);
-//     detach_buffers(shared_memory);
-    exit(EXIT_SUCCESS);
-}
-
 int main(void) {
     void *shared_memory = (void *)0;
     circular_buffer_st *shared_buffers;
@@ -23,14 +17,6 @@ int main(void) {
     FILE *fp;
     char ch;
     char tmp_buffer[TEXT_SIZE];
-    struct sigaction sigs;
-    
-    sigs.sa_handler = cleanup;
-    sigemptyset(&sigs.sa_mask);
-    sigs.sa_flags = 0;
-    
-    sigaction(SIGTERM, &sigs, 0);
-    sigaction(SIGINT, &sigs, 0);
     
     shared_memory = attach_buffers();
     shared_buffers = (circular_buffer_st *) shared_memory;

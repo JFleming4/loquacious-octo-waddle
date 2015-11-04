@@ -8,34 +8,15 @@
 #include "shared_mem.h"
 #include "semun.h"
 
-static FILE *fp;
-
-void cleanup(int sig) {
-    fclose(fp);
-//     detach_buffers(shared_memory);
-//     delete_buffers();
-//     del_semvalue(sem_buffer);
-//     del_semvalue(sem_empty);
-//     del_semvalue(sem_full);
-    exit(EXIT_SUCCESS);
-}
-
 int main(void) {
     void *shared_memory = (void *)0;
     circular_buffer_st *shared_buffers;
     int sem_buffer, sem_empty, sem_full;
     long total_bytes = 0;
     int bytes_read = 0;
+    FILE *fp;
     char ch;
     char tmp_buffer[TEXT_SIZE];
-    struct sigaction sigs;
-    
-    sigs.sa_handler = cleanup;
-    sigemptyset(&sigs.sa_mask);
-    sigs.sa_flags = 0;
-    
-    sigaction(SIGTERM, &sigs, 0);
-    sigaction(SIGINT, &sigs, 0);
     
     shared_memory = attach_buffers();
     shared_buffers = (circular_buffer_st *) shared_memory;
