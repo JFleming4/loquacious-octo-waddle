@@ -1,4 +1,8 @@
+#include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
+#include <sys/shm.h>
+
 #define TEXT_SIZE 128
 #define CIRCULAR_BUFFER_SIZE 100
 
@@ -16,26 +20,26 @@ typedef struct{
 void * attach_buffers(void) {
     void *shared_memory = (void *)0;
     int shmid;
-    
+
     shmid = shmget((key_t)1234, sizeof(circular_buffer_st), 0666 | IPC_CREAT);
-    
+
     if( shmid == -1) {
         fprintf(stderr, "shmget failed\n");
         exit(EXIT_FAILURE);
     }
-    
+
      shared_memory = shmat(shmid, (void *)0, 0);
     if (shared_memory == (void *)-1) {
         fprintf(stderr, "shmat failed\n");
         exit(EXIT_FAILURE);
     }
-    printf("Memory attached at %X\n", (long)shared_memory);
-    
+    printf("Memory attached at %lX\n", (long)shared_memory);
+
     return shared_memory;
 }
 
 void detach_buffers(void *address) {
-    printf("Memory detached from %X\n", (long)address);
+    printf("Memory detached from %lX\n", (long)address);
     if (shmdt(address) == -1) {
         fprintf(stderr, "shmdt failed: %d\n",errno);
         exit(EXIT_FAILURE);
@@ -49,4 +53,3 @@ void delete_buffers(void){
         exit(EXIT_FAILURE);
     }
 }
-    

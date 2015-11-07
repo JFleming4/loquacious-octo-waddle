@@ -1,6 +1,9 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 #include <sys/sem.h>
 
-#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED)
+#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED) || defined(_SYS_SEM_H_)
     /* union semun is defined by including <sys/sem.h> */
 #else
     /* according to X/OPEN we have to define it ourselves */
@@ -11,7 +14,7 @@
         struct seminfo *__buf;      /* buffer for IPC_INFO */
     };
 #endif
-    
+
 #define SEM_BUFFER 4321
 #define SEM_FULL 4132
 #define SEM_EMPTY 3421
@@ -52,7 +55,7 @@ int set_semvalue(int sem_id, int val)
 void del_semvalue(int sem_id)
 {
     union semun sem_union;
-    
+
     if (semctl(sem_id, 0, IPC_RMID, sem_union) == -1)
         fprintf(stderr, "Failed to delete semaphore: %d\n", sem_id);
 }
@@ -62,7 +65,7 @@ void del_semvalue(int sem_id)
 int semaphore_p(int sem_id)
 {
     struct sembuf sem_b;
-    
+
     sem_b.sem_num = 0;
     sem_b.sem_op = -1; /* P() */
     sem_b.sem_flg = SEM_UNDO;
@@ -79,7 +82,7 @@ int semaphore_p(int sem_id)
 int semaphore_v(int sem_id)
 {
     struct sembuf sem_b;
-    
+
     sem_b.sem_num = 0;
     sem_b.sem_op = 1; /* V() */
     sem_b.sem_flg = SEM_UNDO;
