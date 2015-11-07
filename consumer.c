@@ -36,7 +36,9 @@ int main(void) {
         fprintf(stderr, "Failed to Open File\n");
     }
     while(1) {
+        printf("Before Empty\n");
         semaphore_p(sem_empty);
+        printf("Before Buffer\n");
         semaphore_p(sem_buffer);
         /*
         * Critical Section
@@ -46,14 +48,16 @@ int main(void) {
         shared_buffers->head = (shared_buffers->head + 1) % CIRCULAR_BUFFER_SIZE;
         printf("Head: %d\t BR: %d\n", shared_buffers->head,bytes_read);
         printf("Head: %d\tTail: %d\n", shared_buffers->head, shared_buffers->tail);
-
+        /*
+         * End Critical Section
+         */
         semaphore_v(sem_buffer);
         semaphore_v(sem_full);
 
-        total_bytes += fwrite(tmp_buffer, sizeof(char), bytes_read, fp);
-
         if(bytes_read == 0)
             break;
+        
+        total_bytes += fwrite(tmp_buffer, sizeof(char), bytes_read, fp);
     }
 
     fclose(fp);

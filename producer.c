@@ -17,7 +17,8 @@ int main(void) {
     int bytes_to_copy;
     int bytes_left;
     FILE *fp;
-    char tmp_buffer[TEXT_SIZE];
+    char tmp_buffer[BUFSIZ];
+    char ch;
 
     shared_memory = attach_buffers();
     shared_buffers = (circular_buffer_st *) shared_memory;
@@ -38,32 +39,46 @@ int main(void) {
     }
     fseek(fp, SEEK_SET, 0);
     while(1) {
+        
         bytes_read = fread(tmp_buffer, sizeof(char), BUFSIZ, fp);
-
-        semaphore_p(sem_full);
-        semaphore_p(sem_buffer);
-        /*
-        * Critical Section
-        */
-        for (bytes_left = bytes_read; bytes_left >= 0; bytes_left -= bytes_to_copy) {
+        for (bytes_left = bytes_read; bytes_left > 0; bytes_left -= bytes_to_copy) {
             bytes_to_copy = (bytes_left < TEXT_SIZE) ? bytes_left : TEXT_SIZE;
-            for (int i = 0; i < bytes_to_copy; i++) {
-                shared_buffers->buffers[shared_buffers->tail].text[i] = tmp_buffer[i + (bytes_read - bytes_left)];
+            
+            semaphore_p(sem_full);
+            semaphore_p(sem_buffer);
+            /*
+             * Critical Section
+             */
+            // Copy bytes to a buffer in the shared memory
+            for (int i = 0; i < bytes_to_copy; i++) { 
+                ch = tmp_buffer[i + (bytes_read - bytes_left)];
+                shared_buffers->buffers[shared_buffers->tail].text[i] = ch;
             }
+            // Update the length and tail of our Circular Buffer
             shared_buffers->buffers[shared_buffers->tail].length = bytes_to_copy;
             shared_buffers->tail = (shared_buffers->tail + 1) % CIRCULAR_BUFFER_SIZE;
+            printf("Tail: %d\tHead: %d\n", shared_buffers->tail, shared_buffers->head);
+            /*
+             * End Critical Section
+             */
+            semaphore_v(sem_buffer);
+            semaphore_v(sem_empty);
         }
-        printf("Tail: %d\tHead: %d\n", shared_buffers->tail, shared_buffers->head);
-
-        semaphore_v(sem_buffer);
-        semaphore_v(sem_empty);
 
         total_bytes += bytes_read;
 
-        if (bytes_read == 0)
+        // If you read 0 bytes set the next buffer to 0 to end consumer
+        if (bytes_read == 0) {
+            semaphore_p(sem_full);
+            semaphore_p(sem_buffer);
+            shared_buffers->buffers[shared_buffers->tail].length = 0;
+            shared_buffers->tail = (shared_buffers->tail + 1) % CIRCULAR_BUFFER_SIZE;
+            semaphore_v(sem_buffer);
+            semaphore_v(sem_empty);
             break;
-
+        }
     }
+
     fclose(fp);
     detach_buffers(shared_memory);
 
