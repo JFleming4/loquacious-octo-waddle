@@ -24,11 +24,13 @@ int main(void) {
     struct timespec tms;
     int64_t start_ms, end_ms;
 
+    // Set up the shared memory and set the correct start values.
     shared_memory = attach_buffers();
     shared_buffers = (circular_buffer_st *) shared_memory;
     shared_buffers->head = 0;
     shared_buffers->tail = 0;
 
+    // Set up the 3 semaphores
     sem_buffer = get_sem_key(SEM_BUFFER, 1);
     sem_empty = get_sem_key(SEM_EMPTY, 0);
     sem_full = get_sem_key(SEM_FULL, CIRCULAR_BUFFER_SIZE - 1);
@@ -36,25 +38,26 @@ int main(void) {
     printf("SEM_BUFFER ID: %d\n", sem_buffer);
     printf("SEM_EMPTY ID: %d\n", sem_empty);
     printf("SEM_FULL ID: %d\n", sem_full);
-    fp = fopen("file.txt", "r");
 
+    // Open the test text file for reading
+    fp = fopen("file.txt", "r");
     if (fp == NULL) {
         fprintf(stderr, "Failed to Open File\n");
     }
     fseek(fp, SEEK_SET, 0);
     
-    /* POSIX.1-2008 way */
+    
+    // Get the start time in Microseconds
     if (clock_gettime(CLOCK_REALTIME,&tms)) {
         return -1;
     }
-    
     start_ms = tms.tv_sec * 1000000 + tms.tv_nsec/1000;
     if (tms.tv_nsec % 1000 >= 500) {
         ++start_ms;
     }
     
     while(1) {
-        
+        // Read in some characters and transfer them to our circular buffers
         bytes_read = fread(tmp_buffer, sizeof(char), BUFSIZ, fp);
         for (bytes_left = bytes_read; bytes_left > 0; bytes_left -= bytes_to_copy) {
             bytes_to_copy = (bytes_left < TEXT_SIZE) ? bytes_left : TEXT_SIZE;
@@ -94,15 +97,14 @@ int main(void) {
         }
     }
 
-    
+    // Close the file and detach the shared memory
     fclose(fp);
     detach_buffers(shared_memory);
     
-    /* POSIX.1-2008 way */
+    // Get the end time in Microseconds
     if (clock_gettime(CLOCK_REALTIME,&tms)) {
         return -1;
     }
-    
     end_ms = tms.tv_sec * 1000000 + tms.tv_nsec/1000;
     if (tms.tv_nsec % 1000 >= 500) {
         ++end_ms;
