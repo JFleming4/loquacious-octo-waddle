@@ -4,7 +4,9 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <string.h>
-#include <signal.h>
+#include <time.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include "shared_mem.h"
 #include "semun.h"
 
@@ -19,6 +21,8 @@ int main(void) {
     FILE *fp;
     char tmp_buffer[BUFSIZ];
     char ch;
+    struct timespec tms;
+    int64_t start_ms, end_ms;
 
     shared_memory = attach_buffers();
     shared_buffers = (circular_buffer_st *) shared_memory;
@@ -38,6 +42,17 @@ int main(void) {
         fprintf(stderr, "Failed to Open File\n");
     }
     fseek(fp, SEEK_SET, 0);
+    
+    /* POSIX.1-2008 way */
+    if (clock_gettime(CLOCK_REALTIME,&tms)) {
+        return -1;
+    }
+    
+    start_ms = tms.tv_sec * 1000000 + tms.tv_nsec/1000;
+    if (tms.tv_nsec % 1000 >= 500) {
+        ++start_ms;
+    }
+    
     while(1) {
         
         bytes_read = fread(tmp_buffer, sizeof(char), BUFSIZ, fp);
@@ -57,7 +72,7 @@ int main(void) {
             // Update the length and tail of our Circular Buffer
             shared_buffers->buffers[shared_buffers->tail].length = bytes_to_copy;
             shared_buffers->tail = (shared_buffers->tail + 1) % CIRCULAR_BUFFER_SIZE;
-            printf("Tail: %d\tHead: %d\n", shared_buffers->tail, shared_buffers->head);
+//             printf("Tail: %d\tHead: %d\n", shared_buffers->tail, shared_buffers->head);
             /*
              * End Critical Section
              */
@@ -79,8 +94,21 @@ int main(void) {
         }
     }
 
+    
     fclose(fp);
     detach_buffers(shared_memory);
-
+    
+    /* POSIX.1-2008 way */
+    if (clock_gettime(CLOCK_REALTIME,&tms)) {
+        return -1;
+    }
+    
+    end_ms = tms.tv_sec * 1000000 + tms.tv_nsec/1000;
+    if (tms.tv_nsec % 1000 >= 500) {
+        ++end_ms;
+    }
+    
     printf("Total Bytes Read: %ld\n", total_bytes);
+    printf("Microseconds: %"PRId64"\n", end_ms - start_ms);
+    sleep(1);
 }

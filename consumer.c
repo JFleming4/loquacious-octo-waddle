@@ -4,7 +4,9 @@
 #include <sys/shm.h>
 #include <sys/sem.h>
 #include <string.h>
-#include <signal.h>
+#include <time.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include "shared_mem.h"
 #include "semun.h"
 
@@ -17,6 +19,8 @@ int main(void) {
     FILE *fp;
     char ch;
     char tmp_buffer[TEXT_SIZE];
+    struct timespec tms;
+    int64_t start_ms, end_ms;
 
     shared_memory = attach_buffers();
     shared_buffers = (circular_buffer_st *) shared_memory;
@@ -35,10 +39,21 @@ int main(void) {
     if (fp == NULL) {
         fprintf(stderr, "Failed to Open File\n");
     }
+    
+    /* POSIX.1-2008 way */
+    if (clock_gettime(CLOCK_REALTIME,&tms)) {
+        return -1;
+    }
+    
+    start_ms = tms.tv_sec * 1000000 + tms.tv_nsec/1000;
+    if (tms.tv_nsec % 1000 >= 500) {
+        ++start_ms;
+    }
+    
     while(1) {
-        printf("Before Empty\n");
+//         printf("Before Empty\n");
         semaphore_p(sem_empty);
-        printf("Before Buffer\n");
+//         printf("Before Buffer\n");
         semaphore_p(sem_buffer);
         /*
         * Critical Section
@@ -46,8 +61,8 @@ int main(void) {
         strcpy(tmp_buffer, shared_buffers->buffers[shared_buffers->head].text);
         bytes_read = shared_buffers->buffers[shared_buffers->head].length;
         shared_buffers->head = (shared_buffers->head + 1) % CIRCULAR_BUFFER_SIZE;
-        printf("Head: %d\t BR: %d\n", shared_buffers->head,bytes_read);
-        printf("Head: %d\tTail: %d\n", shared_buffers->head, shared_buffers->tail);
+//         printf("Head: %d\t BR: %d\n", shared_buffers->head,bytes_read);
+//         printf("Head: %d\tTail: %d\n", shared_buffers->head, shared_buffers->tail);
         /*
          * End Critical Section
          */
@@ -67,5 +82,16 @@ int main(void) {
     detach_buffers(shared_memory);
     delete_buffers();
 
-    printf("Total Bytes Wrote: %ld\n", total_bytes);
+    /* POSIX.1-2008 way */
+    if (clock_gettime(CLOCK_REALTIME,&tms)) {
+        return -1;
+    }
+    
+    end_ms = tms.tv_sec * 1000000 + tms.tv_nsec/1000;
+    if (tms.tv_nsec % 1000 >= 500) {
+        ++end_ms;
+    }
+    
+    printf("Total Bytes Read: %ld\n", total_bytes);
+    printf("Microseconds: %"PRId64"\n", end_ms - start_ms);
 }
